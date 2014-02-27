@@ -29,7 +29,8 @@ How to compile retroshare-nogui on ArkOS/Archlinux
 --------------------------------------------------
 	# better upgrade the number of cpu cores in your VM
 
-	# first update your system. This is important, so packages which are installed later don't break the whole system
+	# first update your system.
+	# This is important, so packages which are installed later don't break the whole system
 	sudo pacman -Syu
 
 	# install a compiler
