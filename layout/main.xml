@@ -1,0 +1,53 @@
+<xml>
+	<toolbar>
+		<button id="add-location" text="Add Location" iconfont="gen-user-plus"/>
+		<button id="export-identity" text="Export Identity"/>
+	</toolbar>
+	<label size="5" text="Retroshare Plugin for ArkOS"/>
+<!--
+
+This does not work:
+	<costumhtml html="&lt;pre&gt;
+Something
+	&lt;/pre&lt;"/>
+	
+resulting html:
+
+<costumhtml html="<pre> Something </pre>"
+
+-->
+<!-- this works, should have this known first :) -->
+<pre>Setup
+- compile retroshare-nogui. You need a patched version at the moment.
+- create a user account on Archlinux
+- set the path to retroshare-nogui and RETROSHARE_OS_USER in plugins/retroshare/main.py
+
+What works?
+- create new Retroshare Identity/Location
+- start/stop locations, view status running/stopped
+- you can use the rswebui-plugin to control retroshare-nogui: https://gitorious.org/rswebui/rswebui
+  (only one instance can use rswebui, because there is only one port 9090)
+
+Todo:
+- add errorhandling/logging
+- add ssh-rpc settings
+- add upload of keyfile for identity import
+- add identity export
+- decide about retroshare-nogui startup, fork to background?
+  (proof-of-concept code is already working)
+- put data directory on external harddrive?</pre>
+
+	<label size="5" text="Retroshare Locations"/>
+	<dt id="location-list">
+		<dtr header="True">
+			<dth><label text="Identity (Location)"/></dth>
+			<dth><label text="Status"/></dth>
+			<dth><label text="Start/Stop"/></dth>
+			<dth><label text="Edit"/></dth>
+			<dth><label text="Directory"/></dth>
+		</dtr>
+	</dt>
+	<!-- anchor to append out dialog boxes, don't remove this -->
+	<pad id="main">
+	</pad>
+</xml>
