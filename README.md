@@ -40,6 +40,7 @@ How to compile retroshare-nogui on ArkOS/Archlinux
 	sudo pacman -S pkg-config subversion openssl libupnp libgnome-keyring libxss qt4 protobuf cmake
 
 	# install git?
+	sudo pacman -S git
 
 	# install libgcrypt, this is needed by libgnome-keyring
 	# update your system first!
@@ -62,6 +63,7 @@ How to compile retroshare-nogui on ArkOS/Archlinux
 	# get the retroshare sourcecode
 	# a patched version of v0.5.5 is needed
 	cd ~
+	git clone https://github.com/electron128/retroshare
 
 	# compile retroshare-nogui
 	# on a raspberrypi this can take 4h
