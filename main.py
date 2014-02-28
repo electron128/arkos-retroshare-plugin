@@ -4,26 +4,48 @@ from genesis.api import *
 import retroshare_mmi
 
 RETROSHARE_OS_USER = "retroshare"
-RETROSHARE_NOGUI = "/home/vagrant/retroshare-git/retroshare-nogui/src/retroshare-nogui"
+#RETROSHARE_NOGUI = "/home/vagrant/retroshare-git/retroshare-nogui/src/retroshare-nogui"
+RETROSHARE_NOGUI = retroshare-nogui
+'''
+what about translation???
+peakwinter: There will be a translation system introduced in 0.7 and a system will be made available at that time
 
-# what about translation???
-# better have profile on external harddrive
-# but how?
-# the downloads dir has to be on a external drive, because of the size
-# what about ports and port-forwarding?
-# ports are the user-nighmare.
+better have profile on external harddrive
+but how?
+peakwinter: The best way is to leave it as-is, to include a function/configuration for changing a data directory,
+and in the future when the boot/data split is complete, this will be much easier to do from the start.
+the downloads dir has to be on a external drive, because of the size
+
+what about ports and port-forwarding?
+ports are the user-nighmare.
+peakwinter: There is a  SERVICES  directive in  __init__.py
+
+todo: read in tramsmission plugin about service and ports
 
 # now we have hardcoded /home/user/.retroshare directories even here
 # have to remove this
+'''
 
 class RetrosharePlugin(CategoryPlugin):
 	text = "Retroshare"
 	iconfont = "gen-bubbles"# don't know whta this is good for, icon from __init__.py is used
 	folder = "apps"
+'''	
+in which order are init and session start called?
+on_session_start()  is called when the user successfully logs in. It is called for all plugins, whether they are in focus or not.
+This is a good place to get connections to other frameworks and plugins for later use in your plugin.
+on_init()  is called when you view your plugin, in preparation for displaying the page.
+
+livetime of object?
+
+textinput: what is name, and what is id?
+The  name  is how you retrieve values, like with 
+ vars.getvalue(name) . This is what is passed in the POST request. 
+ id  is only used for manipulating the XML (like with 
+ ui.find()  or 
+ ui.remove() ), and not for retrieving values
+'''
 	
-	# in which order are init and session start called?
-	# livetime of object?
-	# textinput: what is name, and what is id?
 	def on_session_start(self):
 		print "on_session_start()"
 		print self

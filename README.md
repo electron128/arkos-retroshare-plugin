@@ -5,6 +5,21 @@ Plugin for ArkOS to control retroshare-nogui.
 
 status: experimental
 
+Installation
+------------
+	# get the PKGBUILD file
+	git clone https://github.com/electron128/arkos-retroshare-plugin.git retroshare-pkgbuild
+	# build the retroshare-nogui package
+	cd retroshare-pkgbuild
+	makepkg
+	# install new package
+	sudo pacman -U <name-of-package>
+
+	# download arkos-retroshare-plugin
+	cd genesis/plugins
+	git clone https://github.com/electron128/arkos-retroshare-plugin.git retroshare
+	# restart genesis
+
 What is ArkOS?
 --------------
 *A project to help users self-host their websites, email, files and more.
@@ -17,13 +32,6 @@ What is Retroshare?
 *Retroshare is a Open Source cross-platform, Friend-2-Friend and secure decentralised communication platform.*
 
 http://retroshare.sourceforge.net/
-
-Installation
-------------
-	# download arkos-retroshare-plugin
-	cd genesis/plugins
-	git clone https://github.com/electron128/arkos-retroshare-plugin.git retroshare
-	# restart genesis
 
 How to compile retroshare-nogui on ArkOS/Archlinux
 --------------------------------------------------
