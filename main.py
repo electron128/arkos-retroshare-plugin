@@ -2,10 +2,14 @@ from genesis.ui import *
 from genesis.api import *
 
 import retroshare_mmi
+import os
+import pwd
+import stat
 
 RETROSHARE_OS_USER = "retroshare"
 #RETROSHARE_NOGUI = "/home/vagrant/retroshare-git/retroshare-nogui/src/retroshare-nogui"
-RETROSHARE_NOGUI = retroshare-nogui
+RETROSHARE_NOGUI = "retroshare-nogui"
+
 '''
 what about translation???
 peakwinter: There will be a translation system introduced in 0.7 and a system will be made available at that time
@@ -30,21 +34,21 @@ class RetrosharePlugin(CategoryPlugin):
 	text = "Retroshare"
 	iconfont = "gen-bubbles"# don't know whta this is good for, icon from __init__.py is used
 	folder = "apps"
-'''	
-in which order are init and session start called?
-on_session_start()  is called when the user successfully logs in. It is called for all plugins, whether they are in focus or not.
-This is a good place to get connections to other frameworks and plugins for later use in your plugin.
-on_init()  is called when you view your plugin, in preparation for displaying the page.
+	'''
+	in which order are init and session start called?
+	on_session_start()  is called when the user successfully logs in. It is called for all plugins, whether they are in focus or not.
+	This is a good place to get connections to other frameworks and plugins for later use in your plugin.
+	on_init()  is called when you view your plugin, in preparation for displaying the page.
 
-livetime of object?
+	livetime of object?
 
-textinput: what is name, and what is id?
-The  name  is how you retrieve values, like with 
- vars.getvalue(name) . This is what is passed in the POST request. 
- id  is only used for manipulating the XML (like with 
- ui.find()  or 
- ui.remove() ), and not for retrieving values
-'''
+	textinput: what is name, and what is id?
+	The  name  is how you retrieve values, like with 
+	 vars.getvalue(name) . This is what is passed in the POST request. 
+	 id  is only used for manipulating the XML (like with 
+	 ui.find()  or 
+	 ui.remove() ), and not for retrieving values
+	'''
 	
 	def on_session_start(self):
 		print "on_session_start()"
@@ -54,26 +58,40 @@ The  name  is how you retrieve values, like with
 		self._pgp_id = None
 		self._name = None
 		
+		# status of dialog windows
 		self._export_identity = False
 		self._edit_location = None
-		
 		self._ask_for_password = False
-		
+		self._ask_for_restart = False
 		self._current_ssl_id = None
+		self._last_error = ""
+		
+		self._cached_locations = []
+		
+		self._mmi_data_directory = "/home/"+RETROSHARE_OS_USER+"/.retroshare_arkos_settings"
+		if not os.path.exists(self._mmi_data_directory):
+			os.mkdir(self._mmi_data_directory)
+			# rw for user
+			os.chmod(self._mmi_data_directory, stat.S_IRUSR | stat.S_IWUSR)
+			passwd = pwd.getpwnam(RETROSHARE_OS_USER)
+			os.chown(self._mmi_data_directory, passwd[2], passwd[3])
 	
 	def on_init(self):
 		print "on_init()"
 		print self
-		self.rs = retroshare_mmi.RetroshareMMI(os_user=RETROSHARE_OS_USER, retroshare_nogui=RETROSHARE_NOGUI)
+		self.rs = retroshare_mmi.RetroshareMMI(mmi_data_directory=self._mmi_data_directory, os_user=RETROSHARE_OS_USER, retroshare_nogui=RETROSHARE_NOGUI)
 
 	def get_ui(self):
 		print "get_ui()"
 		print self
 		ui = self.app.inflate("retroshare:main")
 		
-		location_list = ui.find("location-list")
+		ui.find("retroshare-nogui").set("text", "retroshare-nogui command: "+RETROSHARE_NOGUI)
+		ui.find("os-user").set("text", "RETROSHARE_OS_USER: "+RETROSHARE_OS_USER)
+		ui.find("data-directory").set("text", "Data Directory: "+"/home/"+RETROSHARE_OS_USER+"/.retroshare")
 		
 		if not self._add_location and not self._edit_location and not self._ask_for_password:
+			# load all locations an display in a table
 			ok, locations, error_string = self.rs.get_locations()
 			
 			print "ok:"
@@ -84,6 +102,9 @@ The  name  is how you retrieve values, like with
 			print error_string
 		
 			if ok:
+				location_list = ui.find("location-list")
+				
+				self._cached_locations = locations
 				for location in locations:
 					pid_ok, pid, error_string = self.rs.get_pid(location.ssl_id)
 					if pid_ok and pid:
@@ -103,7 +124,7 @@ The  name  is how you retrieve values, like with
 						UI.Label(text=status),
 						UI.Button(id=button_action, text=button_label),
 						UI.Button(id=("edit-location/"+location.ssl_id), text="Settings"),
-						UI.Label(text="/home/"+RETROSHARE_OS_USER+"/.retroshare/"+location.ssl_id)
+						UI.Label(text=location.ssl_id)
 					))
 			else:
 				ui.append("main",UI.Label(text="could not get location list. Error:"+error_string))
@@ -175,24 +196,44 @@ The  name  is how you retrieve values, like with
 				self._identity_mode = ""
 		
 		if self._edit_location:
+			location = self._edit_location
+			
+			if location.ssh_enabled:
+				ssh_enabled = "True"
+			else:
+				ssh_enabled = "False"
+				
+			if location.ssh_rpc_enabled:
+				ssh_rpc_enabled = "True"
+			else:
+				ssh_rpc_enabled = "False"
+				
 			ui.append('main',
 				UI.DialogBox(
-					UI.Label(text="Settings"),
+					UI.Label(text="Settings for "+location.identity.name+"("+ location.name+")"),
 					UI.FormLine(
-						UI.TextInput(name='name', id='name'),
-						text='TODO'
-					).append(
-						UI.Button(id="import-identity", text="Import Identity")
-					).append(
-						UI.Button(id="existing-identity", text="Select existing Identity")
+						UI.TextInput(name='port', id='port', value=location.port),
+						text='Port'
 					),
 					UI.FormLine(
-						UI.TextInput(id='password', value='Click to add password', password="True"),
-						text='TODO'
+						UI.CheckBox(name='ssh_enabled', id='ssh_enabled', checked=ssh_enabled),
+						text='enable ssh'
 					),
 					UI.FormLine(
-						UI.TextInput(name='location-name', id='location-name'),
-						text='TODO'
+						UI.CheckBox(name='ssh_rpc_enabled', id='ssh_rpc_enabled', checked=ssh_rpc_enabled),
+						text='enable ssh rpc'
+					),
+					UI.FormLine(
+						UI.TextInput(id='ssh_user', name='ssh_user', value=location.ssh_user),
+						text='ssh user'
+					),
+					UI.FormLine(
+						UI.TextInput(name='ssh_password', id='ssh_password', password="True"),
+						text='ssh password'
+					),
+					UI.FormLine(
+						UI.TextInput(name='ssh_port', id='ssh_port', value=location.ssh_port),
+						text='ssh port'
 					),
 					id='edit-location')
 				)
@@ -207,6 +248,7 @@ The  name  is how you retrieve values, like with
 					),
 					id='ask-for-password')
 				)
+		ui.append("main",UI.Label(text=self._last_error))
 		return ui
 
 	@event('button/click')
@@ -228,7 +270,10 @@ The  name  is how you retrieve values, like with
 			print "new-identity button clicked"
 			self._identity_mode = "new"
 		elif params[0] == "edit-location":
-			self._edit_location = params[1]
+			ssl_id = params[1]
+			for location in self._cached_locations:
+				if location.ssl_id == ssl_id:
+					self._edit_location = location
 		elif params[0] == "start-location":
 			self._current_ssl_id = params[1]
 			self._ask_for_password = True
@@ -254,22 +299,80 @@ The  name  is how you retrieve values, like with
 					
 					ok, location, error_string = self.rs.create_identity_and_location(name, password, location_name)
 					
-					if ok:
-						pass
+					if not ok:
+						self._last_error = "Error creating location: "+ error_string
 					else:
-						print "ERROR ERROR ERROR ERROR ERROR ERROR ERROR"
-						print "create_identity_and_location failed:"
-						print error_string
+						self._last_error = ""
 			
 			self._add_location = False
 			self._identity_mode = "existing"
 		
 		elif params[0] == "edit-location":
+			print "edit-location submitted"
+			print event
+			print params
+			print vars
+			
+			if vars.getvalue("action","")=="OK":
+				location = self._edit_location
+				changed = False
+				
+				port = vars.getvalue("port", "")
+				if location.port != port:
+					changed = True
+					location.port = port
+					
+				ssh_enabled = vars.getvalue("ssh_enabled", "")
+				if ssh_enabled == "0":
+					ssh_enabled = False
+				else:
+					ssh_enabled = True
+				if location.ssh_enabled != ssh_enabled:
+					changed = True
+					location.ssh_enabled = ssh_enabled
+				
+				ssh_rpc_enabled = vars.getvalue("ssh_rpc_enabled", "")
+				if ssh_rpc_enabled == "0":
+					ssh_rpc_enabled = False
+				else:
+					ssh_rpc_enabled = True
+				if location.ssh_rpc_enabled != ssh_rpc_enabled:
+					changed = True
+					location.ssh_rpc_enabled = ssh_rpc_enabled
+					
+				ssh_user = vars.getvalue("ssh_user", "")
+				if location.ssh_user != ssh_user:
+					changed = True
+					location.ssh_user = ssh_user
+					
+				ssh_password = vars.getvalue("ssh_password", "")
+				if ssh_password != "":
+					changed = True
+					location.ssh_password = ssh_password
+					
+				ssh_port = vars.getvalue("ssh_port", "")
+				if location.ssh_port != ssh_port:
+					changed = True
+					location.ssh_port = ssh_port
+					
+				if changed:
+					ok, error_string = self.rs.set_location(location)
+					if ok:
+						self._ask_for_restart = True
+						self._current_ssl_id = location.ssl_id
+						self._last_error = ""
+					else:
+						self._last_error = "Error editing location: "+error_string
+			
 			self._edit_location = None
 			
 		elif params[0] == "ask-for-password":
 			if vars.getvalue("action","")=="OK":
-				self.rs.start(vars.getvalue("password",""), self._current_ssl_id)
+				ok, error_string = self.rs.start(vars.getvalue("password",""), self._current_ssl_id)
+				if ok:
+					self._last_error = ""
+				else:
+					self._last_error = "Error starting location: "+error_string
 			self._ask_for_password = False
 
 

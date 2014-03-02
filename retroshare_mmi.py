@@ -51,12 +51,14 @@ which webui?
 - pyrs
 - retroflux
 
-
 '''
 
 import platform
 import subprocess
 import os
+import stat
+import pickle
+import pwd
 
 import signal
 import struct
@@ -64,6 +66,9 @@ import fcntl
 
 # command line switch of rs-nogui to enable mmi
 RS_MMI_SWITCH = "--mmi"
+RS_SSH_KEY_FILENAME = "rs_ssh_host_rsa_key"
+
+SETTINGS_FILENAME = "rs_mmi_settings.py_pickle"
 
 class Identity:
 	name = ""
@@ -74,14 +79,16 @@ class Location:
 	
 	name = ""
 	ssl_id = ""
+	port = ""
+	directory = ""
 	
-	#-- currently unused --
-	enabled = False # wheter this location should start on boot
+	#enabled = False # wheter this location should start on boot
 	# running = False
 	
 	ssh_enabled = False # True or False
 	ssh_user = ""
-	ssh_password = ""
+	ssh_password = "" # write only
+	ssh_passwordhash = ""
 	ssh_port = ""
 	
 	ssh_rpc_enabled = False # True or False
@@ -108,38 +115,44 @@ def runCommand(command, input):
 
 # this is just a copy of the fn in retroshare-initscript-rev0.py
 def getPidFromLockfile(filename):
-    if not os.path.isfile(filename):
-        return None
-    
-    # does not work
-    # lockfile.lock packs the struct for fcntl wrong
-    # see the original python source code
-    #lockfile=posixfile.open(lockFileName)
-    #lock=lockfile.lock("w?")
-    #if lock!=None:
-    #    mode, lenth, start, whence, pid=lock
-    
-    # see
-    # /usr/include/i386-linux-gnu/bits/fcntl.h
-    # fcntl.F_GETLK is 12, so we have to use struct flock64
-    # (12=F_GETLK64, 5=F_GETLK in C)
-    # i guess python uses fcntl.h with defined __USE_FILE_OFFSET64
-    # i don't know if this will work on all linux platforms
-    flock64=struct.pack('hhqql',fcntl.F_WRLCK,0,0,0,0)
-    flock64=fcntl.fcntl(open(filename),fcntl.F_GETLK,flock64)
-    l_type, l_whence, l_start, l_len, l_pid=struct.unpack('hhqql',flock64)
-    if l_type==fcntl.F_UNLCK:
-        return None
-    else:
-        return l_pid
+	if not os.path.isfile(filename):
+		return None
+
+	# does not work
+	# lockfile.lock packs the struct for fcntl wrong
+	# see the original python source code
+	#lockfile=posixfile.open(lockFileName)
+	#lock=lockfile.lock("w?")
+	#if lock!=None:
+	#    mode, lenth, start, whence, pid=lock
+
+	# see
+	# /usr/include/i386-linux-gnu/bits/fcntl.h
+	# fcntl.F_GETLK is 12, so we have to use struct flock64
+	# (12=F_GETLK64, 5=F_GETLK in C)
+	# i guess python uses fcntl.h with defined __USE_FILE_OFFSET64
+	# i don't know if this will work on all linux platforms
+	flock64=struct.pack('hhqql',fcntl.F_WRLCK,0,0,0,0)
+	flock64=fcntl.fcntl(open(filename),fcntl.F_GETLK,flock64)
+	l_type, l_whence, l_start, l_len, l_pid=struct.unpack('hhqql',flock64)
+	if l_type==fcntl.F_UNLCK:
+		return None
+	else:
+		return l_pid
 	
 class RetroshareMMI:
-	def __init__(self, os_user = None, data_directory = None, retroshare_nogui = "retroshare-nogui"):
-		''' Parameter os_user is only available on Linux. The current user needs the right to do "sudo --user" '''
+	def __init__(self, mmi_data_directory, os_user = None, data_directory = None, retroshare_nogui = "retroshare-nogui"):
+		'''
+		Parameter mmi_data_directory is a directory where this script stores it's settings.
+		It has to exists and has to be writeable for os_user and the current user.
+		Parameter os_user is only available on Linux. The current user needs the right to do "sudo --user".
+		'''
+		# store our settings in our own directory, because we don't we to touch rs-dirs at the moment
+		self.mmi_data_directory = mmi_data_directory
 		self.os_user = os_user
 		self.data_directory = data_directory
 		self.retroshare_nogui = retroshare_nogui
-		
+	
 	def _check_sudo(self):
 		if platform.system() == "Linux":
 			if self.os_user:
@@ -148,6 +161,21 @@ class RetroshareMMI:
 				return []
 		else:
 			return []
+	
+	def _load_settings_from_file(self):
+		path = self.mmi_data_directory+"/"+SETTINGS_FILENAME
+		if not os.path.isfile(path):
+			return []
+		f = open(path)
+		locations = pickle.load(f)
+		f.close()
+		return locations
+	
+	def _save_settings_to_file(self, locations):
+		path = self.mmi_data_directory+"/"+SETTINGS_FILENAME
+		f = open(path, "w")
+		pickle.dump(locations, f)
+		f.close()
 		
 	def create_identity_and_location(self, identity_name, password, location_name):
 		''' Create a new identity and a new location. Return a Location object. '''
@@ -175,7 +203,7 @@ class RetroshareMMI:
 			result.name = location_name
 			result.ssl_id = ssl_id
 		else:
-			error_string = stderr
+			error_string = "Error creating Identity and Location: "+stderr
 		
 		return ok, result, error_string
 
@@ -200,7 +228,7 @@ class RetroshareMMI:
 			result.name = location_name
 			result.ssl_id = ssl_id
 		else:
-			error_string = stderr
+			error_string = "Error creating Location: "+stderr
 		
 		return ok, result, error_string
 
@@ -222,7 +250,7 @@ class RetroshareMMI:
 			result.name = None # not known at this point
 			result.pgp_id = pgp_id
 		else:
-			error_string = stderr
+			error_string = "Error importing Identity: "+stderr
 		
 		return ok, result, error_string
 		
@@ -240,7 +268,7 @@ class RetroshareMMI:
 		if returncode == 0:
 			ok = True
 		else:
-			error_string = stderr
+			error_string = "Error exporting Identity: "+stderr
 		
 		return ok, result, error_string
 
@@ -264,7 +292,7 @@ class RetroshareMMI:
 					identity.pgp_id, identity.name = line.split("\t")
 					result += [identity]
 		else:
-			error_string = stderr
+			error_string = "Error Loading Identities:"+stderr
 		
 		return ok, result, error_string
 
@@ -292,16 +320,54 @@ class RetroshareMMI:
 					location.identity.pgp_id, location.identity.name = line.split("\t")
 					
 					result += [location]
+			# load additional data from settings file
+			for location in result:
+				saved_locations = self._load_settings_from_file()
+				saved_location = None
+				for sl in saved_locations:
+					if location.ssl_id == sl.ssl_id:
+						saved_location = sl
+				if saved_location:
+					location.port = saved_location.port
+					location.ssh_enabled = saved_location.ssh_enabled
+					location.ssh_rpc_enabled = saved_location.ssh_rpc_enabled
+					location.ssh_user = saved_location.ssh_user
+					location.ssh_port = saved_location.ssh_port
 		else:
-			error_string = stderr
+			error_string = "Error Loading Locations: "+stderr
 		
 		return ok, result, error_string
 
 	def set_location(self, location):
 		''' Set a locations settings. Parameter location is a Location object. '''
-		ok = False
-		error_string = "set_location() not implemented"
-		return ok, error_string
+		# should check port ranges first
+		# don't check port ranges, don't want to double functions from lower layers
+		
+		saved_locations = self._load_settings_from_file()
+		saved_location = None
+		for sl in saved_locations:
+			if location.ssl_id == sl.ssl_id:
+				saved_location = sl
+		if saved_location:
+			saved_locations.remove(saved_location)
+		
+		if location.ssh_password != "":
+			command = self._check_sudo()
+			command += [self.retroshare_nogui, RS_MMI_SWITCH, "generate-ssh-passwordhash"]
+			input = location.ssh_password + "\n"
+			returncode, stdout, stderr = runCommand(command, input)
+			
+			if returncode == 0:
+				location.ssh_passwordhash = stdout.split("\n")[0]
+			else:
+				return False, "Could not generate passwordhash.\n"+stderr
+		
+		# never save password in plaintext
+		location.ssh_password = ""
+		saved_locations.append(location)
+		self._save_settings_to_file(saved_locations)
+		
+		return True, None
 	
 	def start(self, password, ssl_id=None):
 		''' Start retroshare-nogui for the given ssl_id. If ssl_id==None, then start all enabled locations. '''
@@ -309,6 +375,44 @@ class RetroshareMMI:
 		
 		if ssl_id:
 			command += ["--user-id", ssl_id]
+		
+		# load additional command line args from settings file
+		saved_locations = self._load_settings_from_file()
+		saved_location = None
+		for sl in saved_locations:
+			if ssl_id == sl.ssl_id:
+				saved_location = sl
+		if saved_location:
+			command += ["--port",saved_location.port]
+			if saved_location.ssh_enabled:
+				command += ["--enable-ssh"]
+				command += ["--ssh-user",saved_location.ssh_user]
+				command += ["--ssh-p-hash",saved_location.ssh_passwordhash]
+				command += ["--ssh-port",saved_location.ssh_port]
+				if saved_location.ssh_rpc_enabled:
+					command += ["--enable-rpc"]
+				# check if ssh_private_key exists
+				ssh_private_key_path = self.mmi_data_directory + "/" + RS_SSH_KEY_FILENAME
+				if not os.path.isfile(ssh_private_key_path):
+					#create one if not
+					
+					# todo: should retroshare-nogui handle file permissions???
+					# create file and chmod it
+					f = open(ssh_private_key_path, "w")
+					f.close()
+					# allow only the user to read/write the keyfile
+					os.chmod(ssh_private_key_path, stat.S_IRUSR | stat.S_IWUSR)
+					if self.os_user:
+						print "chown"
+						passwd = pwd.getpwnam(self.os_user)
+						os.chown(ssh_private_key_path, passwd[2], passwd[3])
+					
+					command2 = self._check_sudo()
+					command2 += [self.retroshare_nogui, RS_MMI_SWITCH, "generate-ssh-key"]
+					input2 = ssh_private_key_path + "\n"
+					returncode, stdout, stderr = runCommand(command2, input2)
+					if returncode != 0:
+						return False, "Could not create ssh-keyfile in \"" + ssh_private_key_path + "\".\n" + stderr
 			
 		if platform.system() == "Windows":
 			DETACHED_PROCESS = 0x00000008
@@ -316,10 +420,11 @@ class RetroshareMMI:
 		if platform.system() == "Linux":
 			command = self._check_sudo() + command
 			# retroshare gets killed when this script dies
-			#process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			# cwd is important for rs to find it's ssh-keyfile
+			#process = subprocess.Popen(command, cwd=self.mmi_data_directory, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			
 			# shared stddout/stderr for debugging
-			process = subprocess.Popen(command, stdin=subprocess.PIPE)
+			process = subprocess.Popen(command, cwd=self.mmi_data_directory, stdin=subprocess.PIPE)
 		
 		process.stdin.write(password+"\n")
 		

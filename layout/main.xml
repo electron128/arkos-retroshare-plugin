@@ -19,24 +19,33 @@ resulting html:
 <!-- this works, should have this known first :) -->
 <pre>Setup
 - compile retroshare-nogui. You need a patched version at the moment.
-- create a user account on Archlinux
-- set the path to retroshare-nogui and RETROSHARE_OS_USER in plugins/retroshare/main.py
+  This is very easy if you use the PKGBUILD file in genesis/plugins/retroshare
+  1. copy the PKGBUILD to a empty directory
+  2. run 
+          makepkg
+  3. run 
+          sudo pacman -S name-of-package
+- create a user account on Archlinux. Name this account "retroshare", or change RETROSHARE_OS_USER in genesis/plugins/retroshare/main.py
 
 What works?
 - create new Retroshare Identity/Location
 - start/stop locations, view status running/stopped
+- enable ssh menue system and ssh-rpc
 - you can use the rswebui-plugin to control retroshare-nogui: https://gitorious.org/rswebui/rswebui
   (only one instance can use rswebui, because there is only one port 9090)
+- the PKGBUILD has rswebui already included. Open http://your_arkos_machine:9090 in your Browser
 
 Todo:
-- add errorhandling/logging
-- add ssh-rpc settings
+- add logging
 - add upload of keyfile for identity import
 - add identity export
 - decide about retroshare-nogui startup, fork to background?
   (proof-of-concept code is already working)
-- put data directory on external harddrive?</pre>
-
+- put data directory on external harddrive?
+- integrate into ArkOS port managment</pre>
+	<label id="retroshare-nogui"/><br/>
+	<label id="os-user"/><br/>
+	<label id="data-directory"/><br/>
 	<label size="5" text="Retroshare Locations"/>
 	<dt id="location-list">
 		<dtr header="True">
@@ -44,7 +53,7 @@ Todo:
 			<dth><label text="Status"/></dth>
 			<dth><label text="Start/Stop"/></dth>
 			<dth><label text="Edit"/></dth>
-			<dth><label text="Directory"/></dth>
+			<dth><label text="Location-ID"/></dth>
 		</dtr>
 	</dt>
 	<!-- anchor to append out dialog boxes, don't remove this -->

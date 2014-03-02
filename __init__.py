@@ -2,7 +2,7 @@ NAME = 'Retroshare'
 TYPE = 'plugin'
 ICON = 'gen-screen'
 PLATFORMS = ['any']
-DESCRIPTION = 'Retroshare: secure communications with friends'
+DESCRIPTION = 'Secure communication and filesharing with friends'
 LONG_DESCRIPTION = ("RetroShare is a Open Source cross-platform, Friend-2-Friend and"
 					" secure decentralised communication platform."
 					"It lets you to securely chat and share files with your friends, family and coworkers,"
@@ -10,7 +10,7 @@ LONG_DESCRIPTION = ("RetroShare is a Open Source cross-platform, Friend-2-Friend
 					" RetroShare provides filesharing, chat, messages, forums and channels.")
 VERSION = '0'
 AUTHOR = 'electron'
-HOMEPAGE = ''
+HOMEPAGE = 'https://github.com/electron128/arkos-retroshare-plugin'
 APP_AUTHOR = "Retroshare Team"
 APP_HOMEPAGE = "http://retroshare.org"
 
