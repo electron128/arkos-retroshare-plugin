@@ -28,6 +28,16 @@ todo: read in tramsmission plugin about service and ports
 
 # now we have hardcoded /home/user/.retroshare directories even here
 # have to remove this
+
+
+Todo:
+- add logging
+- add identity export
+- decide about retroshare-nogui startup, fork to background?
+  (proof-of-concept code is already working)
+- put data directory on external harddrive?
+- integrate into ArkOS port managment
+
 '''
 
 class RetrosharePlugin(CategoryPlugin):
@@ -66,13 +76,15 @@ class RetrosharePlugin(CategoryPlugin):
 		self._current_ssl_id = None
 		self._last_error = ""
 		
+		self._selected_pgp_id = None
+		
 		self._cached_locations = []
 		
 		self._mmi_data_directory = "/home/"+RETROSHARE_OS_USER+"/.retroshare_arkos_settings"
 		if not os.path.exists(self._mmi_data_directory):
 			os.mkdir(self._mmi_data_directory)
 			# rw for user
-			os.chmod(self._mmi_data_directory, stat.S_IRUSR | stat.S_IWUSR)
+			os.chmod(self._mmi_data_directory, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 			passwd = pwd.getpwnam(RETROSHARE_OS_USER)
 			os.chown(self._mmi_data_directory, passwd[2], passwd[3])
 	
@@ -156,10 +168,13 @@ class RetrosharePlugin(CategoryPlugin):
 									UI.TextInput(name='location-name', id='location-name'),
 									text='Location'
 								),
-								id='add-location')
+								id='add-location'
 							)
+						)
 						for identity in identities:
-							ui.find("name").append(UI.SelectOption(text=identity.name+"("+identity.pgp_id+")", value=identity.pgp_id))
+							ui.find("name").append(UI.SelectOption(text=identity.name+"("+identity.pgp_id+")", value=identity.pgp_id, id=identity.pgp_id))
+						if self._selected_pgp_id:
+							ui.find(self._selected_pgp_id).set("selected", "True")
 					else:
 						# no existing identities, show new identity dialog
 						print "no identities switching to new identity"
@@ -188,12 +203,27 @@ class RetrosharePlugin(CategoryPlugin):
 							UI.TextInput(name='location-name', id='location-name'),
 							text='Location'
 						),
-						id='add-location')
+						id='add-location'
 					)
+				)
 			if self._identity_mode == "import":
 				# we have to show a box here to upload a file
-				ui.append("main",UI.Label(text="Error: upload of keyfile not implemented. No import possible."))
-				self._identity_mode = ""
+				ui.append("main",
+					UI.UploadBox(id='upload-key',
+						text="Select Identity file for import",
+						multiple=False))
+						
+					# does not work
+					# UI.DialogBox(
+						# UI.Label(text="Import Identity"),
+						# UI.Uploader(
+							# url='/upload_key',
+							# text='add private key to keyring'
+						# ),
+						# id="upload-key"
+					# )
+				# )
+				self._identity_mode = "existing"
 		
 		if self._edit_location:
 			location = self._edit_location
@@ -241,7 +271,7 @@ class RetrosharePlugin(CategoryPlugin):
 		if self._ask_for_password:
 			ui.append('main',
 				UI.DialogBox(
-					UI.Label(text="Enter your password"),
+					UI.Label(text="Enter your Retroshare password"),
 					UI.FormLine(
 						UI.TextInput(id='password', name='password', password="True"),
 						text='Password'
@@ -250,6 +280,16 @@ class RetrosharePlugin(CategoryPlugin):
 				)
 		ui.append("main",UI.Label(text=self._last_error))
 		return ui
+
+	# does not work as expected
+	@url('^/upload_key$')
+	def upload(self, req, sr):
+		vars = get_environment_vars(req)
+		f = vars.getvalue('file', None)
+		print "got file"
+		print str(file)
+		sr('301 Moved Permanently', [('Location', '/')])
+		return ''
 
 	@event('button/click')
 	def on_click(self, event, params, vars = None):
@@ -280,6 +320,9 @@ class RetrosharePlugin(CategoryPlugin):
 		elif params[0] == "stop-location":
 			location = params[1]
 			self.rs.stop(location)
+			self._last_error = ""
+		elif params[0] == "export-identity":
+			self._last_error = "Export of Identity not implemented."
 
 	@event('dialog/submit')
 	def on_submit(self, event, params, vars = None):
@@ -303,7 +346,8 @@ class RetrosharePlugin(CategoryPlugin):
 						self._last_error = "Error creating location: "+ error_string
 					else:
 						self._last_error = ""
-			
+			else:
+				self._last_error = ""
 			self._add_location = False
 			self._identity_mode = "existing"
 		
@@ -363,7 +407,8 @@ class RetrosharePlugin(CategoryPlugin):
 						self._last_error = ""
 					else:
 						self._last_error = "Error editing location: "+error_string
-			
+			else:
+				self._last_error = ""
 			self._edit_location = None
 			
 		elif params[0] == "ask-for-password":
@@ -373,6 +418,49 @@ class RetrosharePlugin(CategoryPlugin):
 					self._last_error = ""
 				else:
 					self._last_error = "Error starting location: "+error_string
+			else:
+				self._last_error = ""
 			self._ask_for_password = False
+		
+		elif params[0] == "upload-key":
+			if vars.getvalue('action', '') == 'OK' and vars.has_key('file'):
+				upf = vars['file']
+				print "got uploaded file"
+				print str(upf)
+				
+				filepath = self._mmi_data_directory + "/genesis_identity_import_tmp"
+				
+				import pdb; pdb.set_trace()
+				
+				# first create a file
+				file = open(filepath, "w")
+				file.close()
+				# then change permissions to not allow anyone else to read it
+				os.chmod(filepath, stat.S_IRUSR | stat.S_IWUSR)
+				
+				# open file again and write data to it
+				file = open(filepath, "w")
+				file.write(upf.value)
+				file.close()
+				
+				# change ownership of file to RETROSHARE_OS_USER
+				passwd = pwd.getpwnam(RETROSHARE_OS_USER)
+				os.chown(filepath, passwd[2], passwd[3])
+				
+				ok, pgp_id, error_string = self.rs.import_identity(filepath)
+				
+				if ok:
+					self._selected_pgp_id = pgp_id
+					self._add_location = True
+					self._last_error = ""
+				else:
+					self._add_location = False
+					self._last_error = "Import of identity failed: " + error_string
+				
+				os.remove(filepath)
+			else:
+				self._last_error = ""
+				self._add_location = False
+			self._identity_mode = "existing"
 
 

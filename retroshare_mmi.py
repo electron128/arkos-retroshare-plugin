@@ -11,19 +11,16 @@ functions return:
 
 ok: True or False
 result: depends on the function, could be a list, dictionary or whatever
-        some functions don't return a result
+        some functions don't return None as result
 error_string: a human readable error string
 
 notes:
 - what about different os users? need to run retroshare-nogui with different user?
-- how to handle webinterface/android/...?
+- how to handle settings for webinterface/android/...?
 - want to hide complexity from the user
-- create a ssh-key
 - translate the error strings?
+maybe python gettext?
 
-where to store the settings?
-we have some data which has to be set from outside of retroshare
-we need this data before rs starts
 what about the port in rswebui?
 
 code in this file should stay generic as possible, to allow different frontends like ArkOS-genesis and Freedombox-Plinth
@@ -146,6 +143,7 @@ class RetroshareMMI:
 		Parameter mmi_data_directory is a directory where this script stores it's settings.
 		It has to exists and has to be writeable for os_user and the current user.
 		Parameter os_user is only available on Linux. The current user needs the right to do "sudo --user".
+		Retroshare will then run as os_user.
 		'''
 		# store our settings in our own directory, because we don't we to touch rs-dirs at the moment
 		self.mmi_data_directory = mmi_data_directory
@@ -233,9 +231,9 @@ class RetroshareMMI:
 		return ok, result, error_string
 
 	def import_identity(self, path_to_keyfile):
-		''' Import a identity(=PGP-key). Return a Identiy object. '''
+		''' Import a identity(=PGP public+private key). Return pgp_id as string. '''
 		ok = False
-		result = None
+		pgp_id = None
 		error_string = None
 		command = self._check_sudo()
 		
@@ -246,18 +244,14 @@ class RetroshareMMI:
 		if returncode == 0:
 			ok = True
 			pgp_id = stdout.split("\n")[0]
-			result = Identity()
-			result.name = None # not known at this point
-			result.pgp_id = pgp_id
 		else:
-			error_string = "Error importing Identity: "+stderr
+			error_string = "Error importing Identity:\n"+stderr
 		
-		return ok, result, error_string
+		return ok, pgp_id, error_string
 		
 	def export_identity(self, pgp_id, path_to_keyfile):
-		''' Export a identity(=PGP-key). Return Tuple (ok, None, error_string)'''
+		''' Export a identity(=PGP public+private key). Return Tuple (ok, None, error_string)'''
 		ok = False
-		result = None
 		error_string = None
 		command = self._check_sudo()
 		
@@ -270,7 +264,7 @@ class RetroshareMMI:
 		else:
 			error_string = "Error exporting Identity: "+stderr
 		
-		return ok, result, error_string
+		return ok, None, error_string
 
 	def get_identities(self):
 		''' Return a list of Identity objects. '''
@@ -370,7 +364,7 @@ class RetroshareMMI:
 		return True, None
 	
 	def start(self, password, ssl_id=None):
-		''' Start retroshare-nogui for the given ssl_id. If ssl_id==None, then start all enabled locations. '''
+		''' Start retroshare-nogui for the given ssl_id. If ssl_id=None, start default location.'''
 		command = [self.retroshare_nogui]
 		
 		if ssl_id:
@@ -452,6 +446,7 @@ class RetroshareMMI:
 			return False, "Error in stop(): not implemented on Windows"
 		
 	def get_pid(self, ssl_id):
+		''' Return process id of location with ssl_id. If the location is not running, return None.'''
 		if platform.system() == "Linux":
 			if self.os_user:
 				lockfilename = "/home/"+self.os_user+"/.retroshare/"+ssl_id+"/lock"
@@ -461,20 +456,6 @@ class RetroshareMMI:
 				return False, None, "Error in get_pid(): no os_user given"
 		else:
 			return False, None, "Error in get_pid(): not implemented on Windows"
-
-	def status(self):
-		''' Return the status of the locations.
-		This is similar to get_locations,so maybe return the status in get_locations, and remove this.
-		'''
-		ok = True
-		result = [DummyLocation("hans","home"),DummyLocation("hans","far away"),DummyLocation("fritz","laptop")]
-		error_string = None
-		
-		ok = False
-		result = None
-		error_string = "status() currently not implemented. Try to start retroshare an see the output to check if retroshare-nogui is running. Or use another program to see if retroshare-nogui is running."
-		
-		return ok, result, error_string
 
 if __name__ == "__main__":
 	if platform.system() == "Windows":

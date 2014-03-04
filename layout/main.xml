@@ -1,7 +1,7 @@
 <xml>
 	<toolbar>
 		<button id="add-location" text="Add Location" iconfont="gen-user-plus"/>
-		<button id="export-identity" text="Export Identity"/>
+		<!--<button id="export-identity" text="Export Identity"/>-->
 	</toolbar>
 	<label size="5" text="Retroshare Plugin for ArkOS"/>
 <!--
@@ -27,25 +27,10 @@ resulting html:
           sudo pacman -S name-of-package
 - create a user account on Archlinux. Name this account "retroshare", or change RETROSHARE_OS_USER in genesis/plugins/retroshare/main.py
 
-What works?
-- create new Retroshare Identity/Location
-- start/stop locations, view status running/stopped
-- enable ssh menue system and ssh-rpc
-- you can use the rswebui-plugin to control retroshare-nogui: https://gitorious.org/rswebui/rswebui
+- the PKGBUILD has rswebui included and enabled. Open http://your_arkos_machine:9090 in your Browser
   (only one instance can use rswebui, because there is only one port 9090)
-- the PKGBUILD has rswebui already included. Open http://your_arkos_machine:9090 in your Browser
-
-Todo:
-- add logging
-- add upload of keyfile for identity import
-- add identity export
-- decide about retroshare-nogui startup, fork to background?
-  (proof-of-concept code is already working)
-- put data directory on external harddrive?
-- integrate into ArkOS port managment</pre>
-	<label id="retroshare-nogui"/><br/>
-	<label id="os-user"/><br/>
-	<label id="data-directory"/><br/>
+  
+- report bugs at https://github.com/electron128/arkos-retroshare-plugin/issues</pre>
 	<label size="5" text="Retroshare Locations"/>
 	<dt id="location-list">
 		<dtr header="True">
@@ -56,7 +41,10 @@ Todo:
 			<dth><label text="Location-ID"/></dth>
 		</dtr>
 	</dt>
-	<!-- anchor to append out dialog boxes, don't remove this -->
+	<label id="retroshare-nogui"/><br/>
+	<label id="os-user"/><br/>
+	<label id="data-directory"/><br/>
+	<!-- anchor to append our dialog boxes, don't remove this -->
 	<pad id="main">
 	</pad>
 </xml>

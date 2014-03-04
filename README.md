@@ -3,7 +3,7 @@ arkos-retroshare-plugin
 
 Plugin for ArkOS to control retroshare-nogui.
 
-status: experimental
+status: it works but may has bugs
 
 Installation
 ------------
