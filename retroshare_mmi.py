@@ -3,11 +3,11 @@
 
 Functions for simple managment of retroshare identities and locations
 (using retroshare-nogui)
+
 Identity: a public/private PGP keypair
 Location: a ssl-keypair, signed by a PGP key
 
-functions return:
-(ok, result, error_string)
+all functions return: (ok, result, error_string)
 
 ok: True or False
 result: depends on the function, could be a list, dictionary or whatever
@@ -104,7 +104,11 @@ class DummyLocation(Location):
 		self.ssl_id = "dummy-ssl-id-of-location-" + location
 
 def runCommand(command, input):
-	''' command is a list like ["executable","arg1","arg2"]. input is a string which will be passed to stdin of the command. Return (returncode, stdout, stderr).'''
+	'''
+	command is a list like ["executable","arg1","arg2"]. 
+	input is a string which will be passed to stdin of the command.
+	Return (returncode, stdout, stderr).
+	'''
 	# universal_newlines = True is important for windows
 	process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 	stdout, stderr = process.communicate(input)

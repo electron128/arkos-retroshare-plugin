@@ -26,13 +26,14 @@ peakwinter: There is a  SERVICES  directive in  __init__.py
 
 todo: read in tramsmission plugin about service and ports
 
+problem: want different firewall rules for different ports
+
 # now we have hardcoded /home/user/.retroshare directories even here
 # have to remove this
 
 
 Todo:
 - add logging
-- add identity export
 - decide about retroshare-nogui startup, fork to background?
   (proof-of-concept code is already working)
 - put data directory on external harddrive?
@@ -40,7 +41,7 @@ Todo:
 
 '''
 
-class RetrosharePlugin(CategoryPlugin):
+class RetrosharePlugin(CategoryPlugin, URLHandler, IURLHandler):
 	text = "Retroshare"
 	iconfont = "gen-bubbles"# don't know whta this is good for, icon from __init__.py is used
 	folder = "apps"
@@ -211,18 +212,8 @@ class RetrosharePlugin(CategoryPlugin):
 				ui.append("main",
 					UI.UploadBox(id='upload-key',
 						text="Select Identity file for import",
-						multiple=False))
-						
-					# does not work
-					# UI.DialogBox(
-						# UI.Label(text="Import Identity"),
-						# UI.Uploader(
-							# url='/upload_key',
-							# text='add private key to keyring'
-						# ),
-						# id="upload-key"
-					# )
-				# )
+						multiple=False)
+					)
 				self._identity_mode = "existing"
 		
 		if self._edit_location:
@@ -278,18 +269,60 @@ class RetrosharePlugin(CategoryPlugin):
 					),
 					id='ask-for-password')
 				)
+		
+		if self._export_identity:
+			ok, identities, error_string = self.rs.get_identities()
+			if ok:
+				table = UI.DT(
+							UI.DTR(
+								UI.DTH(UI.Label(text="Identity")),
+								UI.DTH(UI.Label(text="PGP-ID")),
+								UI.DTH(UI.Label(text="export it")),
+								header="True"
+							)
+						)
+				for identity in identities:
+					table.append(
+						UI.DTR(
+							UI.Label(text=identity.name),
+							UI.Label(text=identity.pgp_id),
+							UI.CustomHTML(html="<a href='retroshare/export_identity/"+identity.pgp_id+"'>download keyfile</a>")
+						)
+					)
+				ui.append("main",UI.DialogBox(UI.Label(text="Export Identity"), table, id="export-identity"))
+			else:
+				self._export_identity = False
+				last_error = "could not get lits of identites: " + error_string
 		ui.append("main",UI.Label(text=self._last_error))
 		return ui
 
-	# does not work as expected
-	@url('^/upload_key$')
-	def upload(self, req, sr):
-		vars = get_environment_vars(req)
-		f = vars.getvalue('file', None)
-		print "got file"
-		print str(file)
-		sr('301 Moved Permanently', [('Location', '/')])
-		return ''
+	@url("^/retroshare/export_identity.*$")
+	def download_identity(self, req, start_response):
+		self.on_init()
+		pgp_id = req["PATH_INFO"].split("/")[3]
+		print "download identity() pgp_id:"+pgp_id
+		
+		keyfile_path = self._mmi_data_directory + "/genesis_identity_export_tmp"
+		ok, nothing, error_string = self.rs.export_identity(pgp_id, keyfile_path)
+		if ok:
+			self._export_identity = False
+			size = os.path.getsize(keyfile_path)
+			file = open(keyfile_path, "rb")
+			data = file.read()
+			file.close()
+			os.remove(keyfile_path)
+			start_response('200 OK', [
+				('Content-length', str(size)),
+				('Content-Disposition', 'attachment; filename=%s' % pgp_id+'_retroshare_private_key.asc')
+			])
+			return data
+		else:
+			msg = "failed to export Retroshare identity\n"+error_string
+			start_response('200 OK', [
+				('Content-length', str(size)),
+				('Content-type', 'text/plain')
+			])
+			return msg
 
 	@event('button/click')
 	def on_click(self, event, params, vars = None):
@@ -322,7 +355,7 @@ class RetrosharePlugin(CategoryPlugin):
 			self.rs.stop(location)
 			self._last_error = ""
 		elif params[0] == "export-identity":
-			self._last_error = "Export of Identity not implemented."
+			self._export_identity = True
 
 	@event('dialog/submit')
 	def on_submit(self, event, params, vars = None):
@@ -462,5 +495,7 @@ class RetrosharePlugin(CategoryPlugin):
 				self._last_error = ""
 				self._add_location = False
 			self._identity_mode = "existing"
-
+		elif params[0] == "export-identity":
+			self._export_identity = False
+			self._last_error = ""
 

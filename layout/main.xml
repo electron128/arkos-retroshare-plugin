@@ -1,7 +1,7 @@
 <xml>
 	<toolbar>
 		<button id="add-location" text="Add Location" iconfont="gen-user-plus"/>
-		<!--<button id="export-identity" text="Export Identity"/>-->
+		<button id="export-identity" text="Export Identity"/>
 	</toolbar>
 	<label size="5" text="Retroshare Plugin for ArkOS"/>
 <!--
