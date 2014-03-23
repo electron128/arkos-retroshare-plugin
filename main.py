@@ -103,7 +103,7 @@ class RetrosharePlugin(CategoryPlugin, URLHandler, IURLHandler):
 		ui.find("os-user").set("text", "RETROSHARE_OS_USER: "+RETROSHARE_OS_USER)
 		ui.find("data-directory").set("text", "Data Directory: "+"/home/"+RETROSHARE_OS_USER+"/.retroshare")
 		
-		if not self._add_location and not self._edit_location and not self._ask_for_password:
+		if not self._add_location and not self._edit_location and not self._ask_for_password and not self._ask_for_restart:
 			# load all locations an display in a table
 			ok, locations, error_string = self.rs.get_locations()
 			
@@ -216,7 +216,7 @@ class RetrosharePlugin(CategoryPlugin, URLHandler, IURLHandler):
 					)
 				self._identity_mode = "existing"
 		
-		if self._edit_location:
+		if self._edit_location and not self._ask_for_restart:
 			location = self._edit_location
 			
 			if location.ssh_enabled:
@@ -259,6 +259,13 @@ class RetrosharePlugin(CategoryPlugin, URLHandler, IURLHandler):
 					id='edit-location')
 				)
 		
+		if self._ask_for_restart:
+				ui.append('main',
+				UI.DialogBox(
+					UI.Label(text="Do you want to restart "+self._edit_location.identity.name+"("+ self._edit_location.name+") to apply new settings?"),
+					id='ask-for-restart')
+				)
+			
 		if self._ask_for_password:
 			ui.append('main',
 				UI.DialogBox(
@@ -435,15 +442,33 @@ class RetrosharePlugin(CategoryPlugin, URLHandler, IURLHandler):
 				if changed:
 					ok, error_string = self.rs.set_location(location)
 					if ok:
-						self._ask_for_restart = True
+						pid_ok, pid, error_string = self.rs.get_pid(location.ssl_id)
+						if pid_ok and pid:
+							self._ask_for_restart = True
+						else:
+							self._edit_location = None
+						if pid_ok:
+							self._last_error = ""
+						else:
+							self._last_error = "Could not check if instance is running: "+error_string
+							self._edit_location = None
 						self._current_ssl_id = location.ssl_id
-						self._last_error = ""
 					else:
 						self._last_error = "Error editing location: "+error_string
+						self._edit_location = None
+				else:
+					self._last_error = ""
+					self._edit_location = None
 			else:
 				self._last_error = ""
+				self._edit_location = None
+		
+		elif params[0] == "ask-for-restart":
+			if vars.getvalue("action","")=="OK":
+				self._ask_for_password = True
 			self._edit_location = None
-			
+			self._ask_for_restart = False
+		
 		elif params[0] == "ask-for-password":
 			if vars.getvalue("action","")=="OK":
 				ok, error_string = self.rs.start(vars.getvalue("password",""), self._current_ssl_id)

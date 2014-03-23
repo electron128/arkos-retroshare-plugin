@@ -330,6 +330,8 @@ class RetroshareMMI:
 					location.ssh_enabled = saved_location.ssh_enabled
 					location.ssh_rpc_enabled = saved_location.ssh_rpc_enabled
 					location.ssh_user = saved_location.ssh_user
+					location.ssh_passwordhash = saved_location.ssh_passwordhash
+					
 					location.ssh_port = saved_location.ssh_port
 		else:
 			error_string = "Error Loading Locations: "+stderr
