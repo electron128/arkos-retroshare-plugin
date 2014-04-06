@@ -89,6 +89,10 @@ class Location:
 	ssh_port = ""
 	
 	ssh_rpc_enabled = False # True or False
+	
+	# not sure what will happen with this,
+	# because webui is a plugin an has nothing to do with retroshare-nogui
+	webui_port = ""
 
 class DummyIdentity(Identity):
 	''' For testing without retroshare-nogui available. '''
@@ -109,6 +113,10 @@ def runCommand(command, input):
 	input is a string which will be passed to stdin of the command.
 	Return (returncode, stdout, stderr).
 	'''
+	print "retroshare_mmi.py runCommand()"
+	for arg in command:
+		print "\t" + arg
+	
 	# universal_newlines = True is important for windows
 	process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 	stdout, stderr = process.communicate(input)
@@ -333,6 +341,8 @@ class RetroshareMMI:
 					location.ssh_passwordhash = saved_location.ssh_passwordhash
 					
 					location.ssh_port = saved_location.ssh_port
+					
+					location.webui_port = saved_location.webui_port
 		else:
 			error_string = "Error Loading Locations: "+stderr
 		
@@ -384,6 +394,10 @@ class RetroshareMMI:
 				saved_location = sl
 		if saved_location:
 			command += ["--port",saved_location.port]
+			
+			# rswebui plugin
+			command += ["--pluginparams","rswebui:port="+saved_location.webui_port+";"]
+			
 			if saved_location.ssh_enabled:
 				command += ["--enable-ssh"]
 				command += ["--ssh-user",saved_location.ssh_user]
@@ -413,7 +427,11 @@ class RetroshareMMI:
 					returncode, stdout, stderr = runCommand(command2, input2)
 					if returncode != 0:
 						return False, "Could not create ssh-keyfile in \"" + ssh_private_key_path + "\".\n" + stderr
-			
+		
+		print "retroshare_mmi.py start()  command:"
+		for arg in command:
+			print "\t" + arg
+		
 		if platform.system() == "Windows":
 			DETACHED_PROCESS = 0x00000008
 			process = subprocess.Popen(command, close_fds=True, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP|DETACHED_PROCESS, stdin=subprocess.PIPE)

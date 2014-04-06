@@ -7,7 +7,7 @@ import pwd
 import stat
 
 RETROSHARE_OS_USER = "retroshare"
-#RETROSHARE_NOGUI = "/home/vagrant/retroshare-git/retroshare-nogui/src/retroshare-nogui"
+#RETROSHARE_NOGUI = "/home/vagrant/retroshare-git-build/retroshare-nogui/src/retroshare-nogui"
 RETROSHARE_NOGUI = "retroshare-nogui"
 
 '''
@@ -137,7 +137,8 @@ class RetrosharePlugin(CategoryPlugin, URLHandler, IURLHandler):
 						UI.Label(text=status),
 						UI.Button(id=button_action, text=button_label),
 						UI.Button(id=("edit-location/"+location.ssl_id), text="Settings"),
-						UI.Label(text=location.ssl_id)
+						UI.Label(text=location.ssl_id),
+						UI.CustomHTML(html="<a href='javascript: window.location=location.protocol+\"//\"+location.hostname+\":"+location.webui_port+"\";'> webinterface on port "+location.webui_port+"</a>")
 					))
 			else:
 				ui.append("main",UI.Label(text="could not get location list. Error:"+error_string))
@@ -235,6 +236,10 @@ class RetrosharePlugin(CategoryPlugin, URLHandler, IURLHandler):
 					UI.FormLine(
 						UI.TextInput(name='port', id='port', value=location.port),
 						text='Port'
+					),
+					UI.FormLine(
+						UI.TextInput(name='webui_port', id='webui_port', value=location.webui_port),
+						text='port for webui-plugin'
 					),
 					UI.FormLine(
 						UI.CheckBox(name='ssh_enabled', id='ssh_enabled', checked=ssh_enabled),
@@ -406,6 +411,11 @@ class RetrosharePlugin(CategoryPlugin, URLHandler, IURLHandler):
 					changed = True
 					location.port = port
 					
+				webui_port = vars.getvalue("webui_port", "")
+				if location.webui_port != webui_port:
+					changed = True
+					location.webui_port = webui_port
+					
 				ssh_enabled = vars.getvalue("ssh_enabled", "")
 				if ssh_enabled == "0":
 					ssh_enabled = False
@@ -468,6 +478,7 @@ class RetrosharePlugin(CategoryPlugin, URLHandler, IURLHandler):
 				self._ask_for_password = True
 			self._edit_location = None
 			self._ask_for_restart = False
+			self.rs.stop(self._current_ssl_id)
 		
 		elif params[0] == "ask-for-password":
 			if vars.getvalue("action","")=="OK":

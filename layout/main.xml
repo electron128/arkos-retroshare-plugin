@@ -24,11 +24,11 @@ resulting html:
   2. run 
           makepkg
   3. run 
-          sudo pacman -S name-of-package
+          sudo pacman -U name-of-package
 - create a user account on Archlinux. Name this account "retroshare", or change RETROSHARE_OS_USER in genesis/plugins/retroshare/main.py
 
-- the PKGBUILD has rswebui included and enabled. Open http://your_arkos_machine:9090 in your Browser
-  (only one instance can use rswebui, because there is only one port 9090)
+- the PKGBUILD has a patched RsWebUI included and enabled. Click on settings to define a port.
+  Don' expose the RsWebUI port to the internet.
   
 - report bugs at https://github.com/electron128/arkos-retroshare-plugin/issues</pre>
 	<label size="5" text="Retroshare Locations"/>
@@ -39,6 +39,7 @@ resulting html:
 			<dth><label text="Start/Stop"/></dth>
 			<dth><label text="Edit"/></dth>
 			<dth><label text="Location-ID"/></dth>
+			<dth><label text="View webinterface"/></dth>
 		</dtr>
 	</dt>
 	<label id="retroshare-nogui"/><br/>

@@ -49,8 +49,8 @@ depends=('openssl' 'libupnp' 'libgnome-keyring' 'libxss' 'libgcrypt')
 
 # download branch v0.5.5-mmi into folder retroshare
 # todo: add .install and .desktop if gui enabled
-source=(	'retroshare::git+https://github.com/electron128/retroshare#branch=v0.5.5-mmi'
-		'rswebui::git+https://git.gitorious.org/rswebui/rswebui.git'
+source=(	'retroshare::git+https://github.com/electron128/retroshare#branch=v0.5.5-arkos'
+		'rswebui::git+https://github.com/electron128/rswebui.git'
 )
 
 # no check for git repo
